@@ -1,0 +1,26 @@
+# /etc/conf.d/oxidd: config file for /etc/init.d/oxidd
+
+# Config file location
+#BITCOIND_CONFIGFILE="/etc/oxid/oxid.conf"
+
+# What directory to write pidfile to?  (created and owned by $BITCOIND_USER)
+#BITCOIND_PIDDIR="/var/run/oxidd"
+
+# What filename to give the pidfile
+#BITCOIND_PIDFILE="${BITCOIND_PIDDIR}/oxidd.pid"
+
+# Where to write oxidd data (be mindful that the blockchain is large)
+#BITCOIND_DATADIR="/var/lib/oxidd"
+
+# User and group to own oxidd process
+#BITCOIND_USER="oxid"
+#BITCOIND_GROUP="oxid"
+
+# Path to oxidd executable
+#BITCOIND_BIN="/usr/bin/oxidd"
+
+# Nice value to run oxidd under
+#BITCOIND_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+BITCOIND_OPTS=""

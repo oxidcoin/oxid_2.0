@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Oxid
+Comment=Oxid P2P Cryptocurrency
+Exec=oxid-qt %u
+Terminal=false
+Type=Application
+Icon=oxid128
+MimeType=x-scheme-handler/oxid;
+Categories=Office;Finance;
