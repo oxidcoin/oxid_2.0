@@ -30,3 +30,14 @@
 *.exe
 *.out
 *.app
+
+*.log
+.DS_Store
+build/
+dist/
+debug/
+release/
+config.log
+config.status
+logs
+
