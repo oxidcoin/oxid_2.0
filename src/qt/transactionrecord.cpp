@@ -46,9 +46,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 
     if (wtx.IsCoinStake()) {
         TransactionRecord sub(hash, nTime);
-        unsigned int nStakeIndex = wtx.vout.size() - 3;
-        unsigned int nMasternodeIndex = wtx.vout.size() - 2;
-        unsigned int nSupernodeIndex = wtx.vout.size() - 1;
+        unsigned int nStakeIndex = wtx.vout.size() >= 4 ? wtx.vout.size() - 3 : 1;
+        unsigned int nMasternodeIndex = wtx.vout.size() >= 4 ? wtx.vout.size() - 2 : 2;
+        unsigned int nSupernodeIndex = wtx.vout.size() >= 4 ? wtx.vout.size() - 1 : 3;
         CTxDestination address;
         if (!ExtractDestination(wtx.vout[1].scriptPubKey, address)) {
             return parts;
