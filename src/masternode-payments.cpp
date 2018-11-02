@@ -388,7 +388,15 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
             LogPrintf("CMasternodePayments::FillBlockPayee(): Proof-of-Work: %s \nSize: %d \nValue: %d\n", txNew.ToString(), txNew.vout.size(), txNew.vout[0].nValue);
         } else {
             unsigned int i = txNew.vout.size();
-            txNew.vout[i - 0].nValue -= nValueToSubtract; // Just in case masternode fails we don't want to pay it's rewards to staker
+            txNew.vout.resize(i + 2);
+            i = txNew.vout.size(); // new size
+            unsigned int nStakeIndex = i - 3;
+            unsigned int nMasternodeIndex = i - 2;
+            unsigned int nSupernodeIndex = i - 1;
+            // Just in case masternode fails we don't want to pay it's rewards to staker
+            txNew.vout[nStakeIndex].nValue -= nValueToSubtract;
+            txNew.vout[nMasternodeIndex].SetEmpty();
+            txNew.vout[nSupernodeIndex].SetEmpty();
         }
     }
 }
