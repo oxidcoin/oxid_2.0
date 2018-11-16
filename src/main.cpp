@@ -2464,7 +2464,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
     std::vector<std::pair<uint256, CDiskTxPos> > vPos;
     std::vector<std::pair<CoinSpend, uint256> > vSpends;
-    std::vector<std::pair<PublicCoin, uint256> > vMints; 
+    std::vector<std::pair<PublicCoin, uint256> > vMints;
     vPos.reserve(block.vtx.size());
     CBlockUndo blockundo;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -3848,23 +3848,6 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
     int64_t nStartTime = GetTimeMillis();
     bool checked = CheckBlock(*pblock, state);
 
-    int nMints = 0;
-    int nSpends = 0;
-    for (const CTransaction tx : pblock->vtx) {
-        if (tx.ContainsZerocoins()) {
-            for (const CTxIn in : tx.vin) {
-                if (in.scriptSig.IsZerocoinSpend())
-                    nSpends++;
-            }
-            for (const CTxOut out : tx.vout) {
-                if (out.IsZerocoinMint())
-                    nMints++;
-            }
-        }
-    }
-    if (nMints || nSpends)
-        LogPrintf("%s : block contains %d zOXID mints and %d zOXID spends\n", __func__, nMints, nSpends);
-
     // oxid: check proof-of-stake
     // Limited duplicity on stake: prevents block flood attack
     // Duplicate stake allowed only when there is orphan child block
@@ -3910,7 +3893,6 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
         if (masternodeSync.RequestedMasternodeAssets > MASTERNODE_SYNC_LIST) {
             obfuScationPool.NewBlock();
             masternodePayments.ProcessBlock(GetHeight() + 10);
-            //budget.NewBlock();
         }
     }
 
@@ -5717,10 +5699,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             }
         }
     } else {
-        //probably one the extensions
-        obfuScationPool.ProcessMessageObfuscation(pfrom, strCommand, vRecv);
         mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
-        //budget.ProcessMessage(pfrom, strCommand, vRecv);
         masternodePayments.ProcessMessageMasternodePayments(pfrom, strCommand, vRecv);
         ProcessMessageInstantTX(pfrom, strCommand, vRecv);
         ProcessSpork(pfrom, strCommand, vRecv);

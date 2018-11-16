@@ -51,34 +51,6 @@ void SendMoney(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,
         throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
 }
 
-Value getpoolinfo(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getpoolinfo\n"
-            "\nReturns anonymous pool-related information\n"
-
-            "\nResult:\n"
-            "{\n"
-            "  \"current\": \"addr\",    (string) Oxid address of current masternode\n"
-            "  \"state\": xxxx,        (string) unknown\n"
-            "  \"entries\": xxxx,      (numeric) Number of entries\n"
-            "  \"accepted\": xxxx,     (numeric) Number of entries accepted\n"
-            "}\n"
-
-            "\nExamples:\n" +
-            HelpExampleCli("getpoolinfo", "") + HelpExampleRpc("getpoolinfo", ""));
-
-    Object obj;
-    obj.push_back(Pair("current_masternode", mnodeman.GetCurrentMasterNode()->addr.ToString()));
-    obj.push_back(Pair("state", obfuScationPool.GetState()));
-    obj.push_back(Pair("entries", obfuScationPool.GetEntriesCount()));
-    obj.push_back(Pair("entries_accepted", obfuScationPool.GetCountEntriesAccepted()));
-    return obj;
-}
-
-// This command is retained for backwards compatibility, but is depreciated.
-// Future removal of this command is planned to keep things clean.
 Value masternode(const Array& params, bool fHelp)
 {
     string strCommand;
@@ -99,18 +71,19 @@ Value masternode(const Array& params, bool fHelp)
             "1. \"command\"        (string or set of strings, required) The command to execute\n"
 
             "\nAvailable commands:\n"
-            "  count        - Print count information of all known masternodes\n"
-            "  current      - Print info on current masternode winner\n"
-            "  debug        - Print masternode status\n"
-            "  genkey       - Generate new masternodeprivkey\n"
-            "  outputs      - Print masternode compatible outputs\n"
-            "  start        - Start masternode configured in oxid.conf\n"
-            "  start-alias  - Start single masternode by assigned alias configured in masternode.conf\n"
-            "  start-<mode> - Start masternodes configured in masternode.conf (<mode>: 'all', 'missing', 'disabled')\n"
-            "  status       - Print masternode status information\n"
-            "  list         - Print list of all known masternodes (see listmasternodes for more info)\n"
-            "  list-conf    - Print masternode.conf in JSON format\n"
-            "  winners      - Print list of masternode winners\n");
+            "  count             - Print count information of all known masternodes\n"
+            "  currentmasternode - Print info on current masternode winner\n"
+            "  currentsupernode  - Print info on current supernode winner\n"
+            "  debug             - Print masternode status\n"
+            "  genkey            - Generate new masternodeprivkey\n"
+            "  outputs           - Print masternode compatible outputs\n"
+            "  start             - Start masternode configured in oxid.conf\n"
+            "  start-alias       - Start single masternode by assigned alias configured in masternode.conf\n"
+            "  start-<mode>      - Start masternodes configured in masternode.conf (<mode>: 'all', 'missing', 'disabled')\n"
+            "  status            - Print masternode status information\n"
+            "  list              - Print list of all known masternodes (see listmasternodes for more info)\n"
+            "  list-conf         - Print masternode.conf in JSON format\n"
+            "  winners           - Print list of masternode winners\n");
 
     if (strCommand == "list") {
         Array newParams(params.size() - 1);
@@ -130,10 +103,16 @@ Value masternode(const Array& params, bool fHelp)
         return getmasternodecount(newParams, fHelp);
     }
 
-    if (strCommand == "current") {
+    if (strCommand == "currentmasternode") {
         Array newParams(params.size() - 1);
         std::copy(params.begin() + 1, params.end(), newParams.begin());
         return masternodecurrent(newParams, fHelp);
+    }
+
+    if (strCommand == "currentsupernode") {
+        Array newParams(params.size() - 1);
+        std::copy(params.begin() + 1, params.end(), newParams.begin());
+        return supernodecurrent(newParams, fHelp);
     }
 
     if (strCommand == "debug") {
@@ -202,6 +181,7 @@ Value listmasternodes(const Array& params, bool fHelp)
             "\nResult:\n"
             "[\n"
             "  {\n"
+            "    \"tier\": n,           (string) Masternode or Supernode\n"
             "    \"rank\": n,           (numeric) Masternode Rank (or 0 if not enabled)\n"
             "    \"txhash\": \"hash\",  (string) Collateral transaction hash\n"
             "    \"outidx\": n,         (numeric) Collateral transaction output index\n"
@@ -248,6 +228,7 @@ Value listmasternodes(const Array& params, bool fHelp)
             CNetAddr node = CNetAddr(strHost, false);
             std::string strNetwork = GetNetworkName(node.GetNetwork());
 
+            obj.push_back(Pair("tier", CMasternode::mnTierToString(mn->mnTier())));
             obj.push_back(Pair("rank", (strStatus == "ENABLED" ? s.first : 0)));
             obj.push_back(Pair("network", strNetwork));
             obj.push_back(Pair("txhash", strTxHash));
@@ -390,7 +371,40 @@ Value masternodecurrent (const Array& params, bool fHelp)
             "\nExamples:\n" +
             HelpExampleCli("masternodecurrent", "") + HelpExampleRpc("masternodecurrent", ""));
 
-    CMasternode* winner = mnodeman.GetCurrentMasterNode(1, CMasternode::nodeTier::UNKNOWN);
+    CMasternode* winner = mnodeman.GetCurrentMasterNode(CMasternode::nodeTier::MASTERNODE, 1);
+    if (winner) {
+        Object obj;
+
+        obj.push_back(Pair("protocol", (int64_t)winner->protocolVersion));
+        obj.push_back(Pair("txhash", winner->vin.prevout.hash.ToString()));
+        obj.push_back(Pair("pubkey", CBitcoinAddress(winner->pubKeyCollateralAddress.GetID()).ToString()));
+        obj.push_back(Pair("lastseen", (winner->lastPing == CMasternodePing()) ? winner->sigTime : (int64_t)winner->lastPing.sigTime));
+        obj.push_back(Pair("activeseconds", (winner->lastPing == CMasternodePing()) ? 0 : (int64_t)(winner->lastPing.sigTime - winner->sigTime)));
+        return obj;
+    }
+
+    throw runtime_error("unknown");
+}
+
+Value supernodecurrent (const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 0))
+        throw runtime_error(
+            "supernodecurrent\n"
+            "\nGet current supernode winner\n"
+
+            "\nResult:\n"
+            "{\n"
+            "  \"protocol\": xxxx,        (numeric) Protocol version\n"
+            "  \"txhash\": \"xxxx\",      (string) Collateral transaction hash\n"
+            "  \"pubkey\": \"xxxx\",      (string) SN Public key\n"
+            "  \"lastseen\": xxx,       (numeric) Time since epoch of last seen\n"
+            "  \"activeseconds\": xxx,  (numeric) Seconds SN has been active\n"
+            "}\n"
+            "\nExamples:\n" +
+            HelpExampleCli("supernodecurrent", "") + HelpExampleRpc("supernodecurrent", ""));
+
+    CMasternode* winner = mnodeman.GetCurrentMasterNode(CMasternode::nodeTier::SUPERNODE, 1);
     if (winner) {
         Object obj;
 
@@ -770,7 +784,8 @@ Value getmasternodewinners (const Array& params, bool fHelp)
             "  {\n"
             "    \"nHeight\": n,           (numeric) block height\n"
             "    \"winner\": {\n"
-            "      \"address\": \"xxxx\",    (string) Oxid MN Address\n"
+            "      \"address\": \"xxxx\",  (string) Oxid MN Address\n"
+            "      \"tier\": n,            (string) Masternode or Supernode\n"
             "      \"nVotes\": n,          (numeric) Number of votes for winner\n"
             "    }\n"
             "  }\n"
@@ -783,7 +798,8 @@ Value getmasternodewinners (const Array& params, bool fHelp)
             "    \"nHeight\": n,           (numeric) block height\n"
             "    \"winner\": [\n"
             "      {\n"
-            "        \"address\": \"xxxx\",  (string) Oxid MN Address\n"
+            "        \"address\": \"xxxx\",(string) Oxid MN Address\n"
+            "        \"tier\": n,          (string) Masternode or Supernode\n"
             "        \"nVotes\": n,        (numeric) Number of votes for winner\n"
             "      }\n"
             "      ,...\n"
@@ -826,20 +842,26 @@ Value getmasternodewinners (const Array& params, bool fHelp)
             boost::tokenizer< boost::char_separator<char> > tokens(strPayment, sep);
             BOOST_FOREACH (const string& t, tokens) {
                 Object addr;
-                std::size_t pos = t.find(":");
-                std::string strAddress = t.substr(0,pos);
-                uint64_t nVotes = atoi(t.substr(pos+1));
+                std::size_t pos1 = t.find(":");
+                std::size_t pos2 = t.rfind(":");
+                std::string strAddress = t.substr(0, pos1);
+                uint64_t tier = atoi(t.substr(pos1 + 1, pos2));
+                uint64_t nVotes = atoi(t.substr(pos2 + 1));
                 addr.push_back(Pair("address", strAddress));
+                addr.push_back(Pair("tier",  tier));
                 addr.push_back(Pair("nVotes", nVotes));
                 winner.push_back(addr);
             }
             obj.push_back(Pair("winner", winner));
         } else if (strPayment.find("Unknown") == std::string::npos) {
             Object winner;
-            std::size_t pos = strPayment.find(":");
-            std::string strAddress = strPayment.substr(0,pos);
-            uint64_t nVotes = atoi(strPayment.substr(pos+1));
+            std::size_t pos1 = strPayment.find(":");
+            std::size_t pos2 = strPayment.rfind(":");
+            std::string strAddress = strPayment.substr(0, pos1);
+            uint64_t tier = atoi(strPayment.substr(pos1 + 1, pos2));
+            uint64_t nVotes = atoi(strPayment.substr(pos2 + 1));
             winner.push_back(Pair("address", strAddress));
+            winner.push_back(Pair("tier",  tier));
             winner.push_back(Pair("nVotes", nVotes));
             obj.push_back(Pair("winner", winner));
         } else {

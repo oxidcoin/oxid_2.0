@@ -324,6 +324,7 @@ static const CRPCCommand vRPCCommands[] =
         {"oxid", "getmasternodecount", &getmasternodecount, true, true, false},
         {"oxid", "masternodeconnect", &masternodeconnect, true, true, false},
         {"oxid", "masternodecurrent", &masternodecurrent, true, true, false},
+        {"oxid", "supernodecurrent", &supernodecurrent, true, true, false},
         {"oxid", "masternodedebug", &masternodedebug, true, true, false},
         {"oxid", "startmasternode", &startmasternode, true, true, false},
         {"oxid", "createmasternodekey", &createmasternodekey, true, true, false},
@@ -334,7 +335,6 @@ static const CRPCCommand vRPCCommands[] =
         {"oxid", "getmasternodescores", &getmasternodescores, true, true, false},
         {"oxid", "mnsync", &mnsync, true, true, false},
         {"oxid", "spork", &spork, true, true, false},
-        {"oxid", "getpoolinfo", &getpoolinfo, true, true, false},
 #ifdef ENABLE_WALLET
         /* Wallet */
         {"wallet", "addmultisigaddress", &addmultisigaddress, true, false, true},

@@ -181,6 +181,18 @@ public:
         return mnTierString;
     }
 
+    std::string mnTierString() {
+        std::string mnTierString = "";
+        if (mnTier() == nodeTier::SUPERNODE) {
+            mnTierString = "SUPERNODE";
+        } else if (mnTier() == nodeTier::MASTERNODE) {
+            mnTierString = "MASTERNODE";
+        } else {
+            mnTierString = "UNKNOWN";
+        }
+        return mnTierString;
+    }
+
     int64_t GetMasternodeCollateral() {
         return 5000;
     }

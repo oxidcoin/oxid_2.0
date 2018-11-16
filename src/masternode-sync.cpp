@@ -211,10 +211,11 @@ void CMasternodeSync::Process()
         /*
             Resync if we lose all masternodes from sleep/wake or failure to sync originally
         */
-        if (mnodeman.CountEnabled() == 0) {
+        if (mnodeman.CountEnabled(CMasternode::nodeTier::MASTERNODE) == 0 && mnodeman.CountEnabled(CMasternode::nodeTier::SUPERNODE) == 0) {
             Reset();
-        } else
+        } else {
             return;
+        }
     }
 
     //try syncing again
@@ -327,8 +328,9 @@ void CMasternodeSync::Process()
                 CBlockIndex* pindexPrev = chainActive.Tip();
                 if (pindexPrev == NULL) return;
 
-                int nMnCount = mnodeman.CountEnabled();
-                pnode->PushMessage("mnget", nMnCount); //sync payees
+                int nMnCount = mnodeman.CountEnabled(CMasternode::nodeTier::MASTERNODE);
+                int nSnCount = mnodeman.CountEnabled(CMasternode::nodeTier::SUPERNODE);
+                pnode->PushMessage("mnget", nMnCount + nSnCount); //sync payees
                 RequestedMasternodeAttempt++;
 
                 return;

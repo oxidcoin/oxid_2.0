@@ -397,16 +397,9 @@ vector<COutput> CActiveMasternode::SelectCoinsMasternode()
             pwalletMain->LockCoin(outpoint);
     }
 
-    // 3.0
-    // BOOST_FOREACH (const COutput& out, vCoins) {
-    //     if (out.tx->vout[out.i].nValue == GetMasternodeCollateral() * COIN) { //exactly
-    //         filteredCoins.push_back(out);
-    //     }
-    // }
-
     // Filter
     BOOST_FOREACH (const COutput& out, vCoins) {
-        // LogPrintf("CActiveMasternode::SelectCoinsMasternode() nValue: %d\n", out.tx->vout[out.i].nValue);
+        // LogPrintf("CActiveMasternode::SelectCoinsMasternode() nValue: %d\n", FormatMoney(out.tx->vout[out.i].nValue).c_str());
         if(CMasternode::HasValidCollateral(out.tx->vout[out.i].nValue)) {
             filteredCoins.push_back(out);
         }

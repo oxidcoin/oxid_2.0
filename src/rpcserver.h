@@ -153,7 +153,7 @@ extern std::string HelpExampleRpc(std::string methodname, std::string args);
 
 extern void EnsureWalletIsUnlocked();
 
-extern json_spirit::Value getconnectioncount(const json_spirit::Array& params, bool fHelp); 
+extern json_spirit::Value getconnectioncount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value ping(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value addnode(const json_spirit::Array& params, bool fHelp);
@@ -238,12 +238,12 @@ extern json_spirit::Value getchaintips(const json_spirit::Array& params, bool fH
 extern json_spirit::Value invalidateblock(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value reconsiderblock(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getinvalid(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value getpoolinfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listmasternodes(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getmasternodecount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternodeconnect(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternodecurrent(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value supernodecurrent(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value masternodedebug(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value startmasternode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createmasternodekey(const json_spirit::Array& params, bool fHelp);

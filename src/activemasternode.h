@@ -14,6 +14,8 @@
 #include "sync.h"
 #include "wallet.h"
 
+#include "utilmoneystr.h"
+
 #define ACTIVE_MASTERNODE_INITIAL 0 // initial state
 #define ACTIVE_MASTERNODE_SYNC_IN_PROCESS 1
 #define ACTIVE_MASTERNODE_INPUT_TOO_NEW 2

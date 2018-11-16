@@ -570,7 +570,10 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     nCount = (int)vecMasternodeLastPaid.size();
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
-    if (fFilterSigTime && nCount < nMnCount / 3) return GetNextMasternodeInQueueForPayment(nBlockHeight, mnTier, false, nCount);
+    if (fFilterSigTime && nCount < nMnCount / 3) {
+        LogPrintf("Network is in the process of upgrading...\n");
+        return GetNextMasternodeInQueueForPayment(nBlockHeight, mnTier, false, nCount);
+    }
 
     // Sort them high to low
     sort(vecMasternodeLastPaid.rbegin(), vecMasternodeLastPaid.rend(), CompareLastPaid());
@@ -631,13 +634,11 @@ CMasternode* CMasternodeMan::FindRandomNotInVec(unsigned mnTier, std::vector<CTx
     return NULL;
 }
 
-CMasternode* CMasternodeMan::GetCurrentMasterNode(int mod, unsigned mnTier, int64_t nBlockHeight, int minProtocol)
+CMasternode* CMasternodeMan::GetCurrentMasterNode(unsigned mnTier, int mod, int64_t nBlockHeight, int minProtocol)
 {
     int64_t score = 0;
     CMasternode* winner = NULL;
     auto checkTier = mnTier != CMasternode::nodeTier::UNKNOWN;
-
-    LogPrintf("CMasternodeMan::GetCurrentMasterNode() MASTERNODE COUNT: %i BLOCK HEIGHT: %d\n", (int)vMasternodes.size(), nBlockHeight);
 
     // scan for winner
     BOOST_FOREACH (CMasternode& mn, vMasternodes) {
@@ -655,6 +656,11 @@ CMasternode* CMasternodeMan::GetCurrentMasterNode(int mod, unsigned mnTier, int6
             score = n2;
             winner = &mn;
         }
+    }
+    if (winner) {
+        LogPrintf("CMasternodeMan::GetCurrentMasterNode() %s\n", winner->ToString());
+    } else {
+        LogPrintf("CMasternodeMan::GetCurrentMasterNode() winner=NULL\n");
     }
     return winner;
 }
