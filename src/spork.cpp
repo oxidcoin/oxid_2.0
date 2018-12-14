@@ -6,7 +6,7 @@
 #include "base58.h"
 #include "key.h"
 #include "main.h"
-
+#include "masternode-budget.h"
 #include "net.h"
 #include "protocol.h"
 #include "spork.h"
@@ -59,7 +59,7 @@ void LoadSporksFromDB()
 
 void ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
-    if (fLiteMode) return; //disable all masternode related functionality
+    if (fLiteMode) return; //disable all obfuscation/masternode related functionality
 
     if (strCommand == "spork") {
         //LogPrintf("ProcessSpork::spork\n");
@@ -136,7 +136,6 @@ int64_t GetSporkValue(int nSporkID)
 bool IsSporkActive(int nSporkID)
 {
     int64_t r = GetSporkValue(nSporkID);
-
     if (r == -1) return false;
     return r < GetTime();
 }

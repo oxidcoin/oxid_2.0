@@ -153,6 +153,7 @@ bool ParseBool(const Object& o, string strKey)
     return v.get_bool();
 }
 
+
 /**
  * Note: This interface may still be subject to change.
  */
@@ -336,8 +337,10 @@ static const CRPCCommand vRPCCommands[] =
         {"oxid", "mnsync", &mnsync, true, true, false},
         {"oxid", "spork", &spork, true, true, false},
 #ifdef ENABLE_WALLET
+
         /* Wallet */
         {"wallet", "addmultisigaddress", &addmultisigaddress, true, false, true},
+        {"wallet", "autocombinerewards", &autocombinerewards, false, false, true},
         {"wallet", "backupwallet", &backupwallet, true, false, true},
         {"wallet", "dumpprivkey", &dumpprivkey, true, false, true},
         {"wallet", "dumpwallet", &dumpwallet, true, false, true},
@@ -371,7 +374,6 @@ static const CRPCCommand vRPCCommands[] =
         {"wallet", "listunspent", &listunspent, false, false, true},
         {"wallet", "lockunspent", &lockunspent, true, false, true},
         {"wallet", "move", &movecmd, false, false, true},
-        //{"wallet", "multisend", &multisend, false, false, true},
         {"wallet", "sendfrom", &sendfrom, false, false, true},
         {"wallet", "sendmany", &sendmany, false, false, true},
         {"wallet", "sendtoaddress", &sendtoaddress, false, false, true},
@@ -524,6 +526,7 @@ static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol, SocketAc
             conn,
             _1));
 }
+
 
 /**
  * Accept and handle incoming connection.

@@ -48,5 +48,5 @@ SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 Standard:        Cpp03
-TabWidth:        8
+TabWidth:        4
 UseTab:          Never

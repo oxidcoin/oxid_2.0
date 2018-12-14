@@ -84,6 +84,26 @@ enum AvailableCoinsType {
     STAKABLE_COINS = 6                    // UTXO's that are valid for staking
 };
 
+// Possible states for zOXID send
+enum ZerocoinSpendStatus {
+    ZOXID_SPEND_OKAY = 0,                         // No error
+    ZOXID_SPEND_ERROR = 1,                        // Unspecified class of errors, more details are (hopefully) in the returning text
+    ZOXID_WALLET_LOCKED = 2,                      // Wallet was locked
+    ZOXID_COMMIT_FAILED = 3,                      // Commit failed, reset status
+    ZOXID_ERASE_SPENDS_FAILED = 4,                // Erasing spends during reset failed
+    ZOXID_ERASE_NEW_MINTS_FAILED = 5,             // Erasing new mints during reset failed
+    ZOXID_TRX_FUNDS_PROBLEMS = 6,                 // Everything related to available funds
+    ZOXID_TRX_CREATE = 7,                         // Everything related to create the transaction
+    ZOXID_TRX_CHANGE = 8,                         // Everything related to transaction change
+    ZOXID_TXMINT_GENERAL = 9,                     // General errors in MintToTxIn
+    ZOXID_INVALID_COIN = 10,                      // Selected mint coin is not valid
+    ZOXID_FAILED_ACCUMULATOR_INITIALIZATION = 11, // Failed to initialize witness
+    ZOXID_INVALID_WITNESS = 12,                   // Spend coin transaction did not verify
+    ZOXID_BAD_SERIALIZATION = 13,                 // Transaction verification failed
+    ZOXID_SPENT_USED_ZOXID = 14,                 // Coin has already been spend
+    ZOXID_TX_TOO_LARGE = 15                       // The transaction is larger than the max tx size
+};
+
 struct CompactTallyItem {
     CBitcoinAddress address;
     CAmount nAmount;
@@ -177,6 +197,15 @@ public:
 
     bool SelectCoinsCollateral(std::vector<CTxIn>& setCoinsRet, CAmount& nValueRet) const;
 
+    // Zerocoin additions
+    bool CreateZerocoinMintTransaction(const CAmount nValue, CMutableTransaction& txNew, vector<CZerocoinMint>& vMints, CReserveKey* reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl* coinControl = NULL, const bool isZCSpendChange = false);
+    bool CreateZerocoinSpendTransaction(CAmount nValue, int nSecurityLevel, CWalletTx& wtxNew, CReserveKey& reserveKey, CZerocoinSpendReceipt& receipt, vector<CZerocoinMint>& vSelectedMints, vector<CZerocoinMint>& vNewMints, bool fMintChange, bool fMinimizeChange, CBitcoinAddress* address = NULL);
+    bool MintToTxIn(CZerocoinMint zerocoinSelected, int nSecurityLevel, const uint256& hashTxOut, CTxIn& newTxIn, CZerocoinSpendReceipt& receipt);
+    std::string MintZerocoin(CAmount nValue, CWalletTx& wtxNew, vector<CZerocoinMint>& vMints, const CCoinControl* coinControl = NULL);
+    bool SpendZerocoin(CAmount nValue, int nSecurityLevel, CWalletTx& wtxNew, CZerocoinSpendReceipt& receipt, vector<CZerocoinMint>& vMintsSelected, bool fMintChange, bool fMinimizeChange, CBitcoinAddress* addressTo = NULL);
+    std::string ResetMintZerocoin(bool fExtendedSearch);
+    std::string ResetSpentZerocoin();
+    void ReconsiderZerocoins(std::list<CZerocoinMint>& listMintsRestored);
     void ZOxidBackupWallet();
 
     /** Zerocin entry changed.
@@ -209,6 +238,15 @@ public:
     unsigned int nHashInterval;
     uint64_t nStakeSplitThreshold;
     int nStakeSetUpdateTime;
+
+    //MultiSend
+    std::vector<std::pair<std::string, int> > vMultiSend;
+    bool fMultiSendStake;
+    bool fMultiSendMasternodeReward;
+    bool fMultiSendNotify;
+    std::string strMultiSendChangeAddress;
+    int nLastMultiSendHeight;
+    std::vector<std::string> vDisabledAddresses;
 
     //Auto Combine Inputs
     bool fCombineDust;
@@ -252,6 +290,15 @@ public:
         nHashInterval = 22;
         nStakeSetUpdateTime = 300; // 5 minutes
 
+        //MultiSend
+        vMultiSend.clear();
+        fMultiSendStake = false;
+        fMultiSendMasternodeReward = false;
+        fMultiSendNotify = false;
+        strMultiSendChangeAddress = "";
+        nLastMultiSendHeight = 0;
+        vDisabledAddresses.clear();
+
         //Auto Combine Dust
         fCombineDust = false;
         nAutoCombineThreshold = 0;
@@ -265,6 +312,17 @@ public:
     void setZOxidAutoBackups(bool fEnabled)
     {
         fBackupMints = fEnabled;
+    }
+
+    bool isMultiSendEnabled()
+    {
+        return false;
+    }
+
+    void setMultiSendDisabled()
+    {
+        fMultiSendMasternodeReward = false;
+        fMultiSendStake = false;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -293,9 +351,9 @@ public:
     std::map<CBitcoinAddress, std::vector<COutput> > AvailableCoinsByAddress(bool fConfirmed = true, CAmount maxCoinValue = 0);
     bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*, unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
 
-    /// Get OXID output and keys which can be used for the Masternode
+    // Get 5000/25000 OXID output and keys which can be used for the Masternode
     bool GetMasternodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = "");
-    /// Extract txin information and keys from output
+    // Extract txin information and keys from output
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet);
 
     bool IsSpent(const uint256& hash, unsigned int n) const;
@@ -385,8 +443,12 @@ public:
     void ReacceptWalletTransactions();
     void ResendWalletTransactions();
     CAmount GetBalance() const;
+    CAmount GetZerocoinBalance(bool fMatureOnly) const;
+    CAmount GetUnconfirmedZerocoinBalance() const;
+    CAmount GetImmatureZerocoinBalance() const;
     CAmount GetLockedCoins() const;
     CAmount GetUnlockedCoins() const;
+    std::map<libzerocoin::CoinDenomination, CAmount> GetMyZerocoinDistribution() const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetAnonymizableBalance() const;
@@ -414,7 +476,9 @@ public:
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
     bool ConvertList(std::vector<CTxIn> vCoins, std::vector<int64_t>& vecAmounts);
     bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, CMutableTransaction& txNew, unsigned int& nTxNewTime);
+    bool MultiSend();
     void AutoCombineDust();
+    void AutoZeromint();
 
     static CFeeRate minTxFee;
     static CAmount GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool);
@@ -432,6 +496,9 @@ public:
     std::map<CTxDestination, CAmount> GetAddressBalances();
 
     std::set<CTxDestination> GetAccountAddresses(std::string strAccount) const;
+
+    bool GetBudgetSystemCollateralTX(CTransaction& tx, uint256 hash, bool useIX);
+    bool GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, bool useIX);
 
     // get the Obfuscation chain depth for a given input
     int GetRealInputObfuscationRounds(CTxIn in, int rounds) const;
@@ -1081,6 +1148,7 @@ public:
                 nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             }
 
+            // Add masternode collaterals which are handled likc locked coins
             if (fMasterNode && CMasternode::HasValidCollateral(vout[i].nValue)) {
                 nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             }

@@ -4,8 +4,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "primitives/transaction.h"
 #include "primitives/block.h"
+#include "primitives/transaction.h"
 
 #include "chain.h"
 #include "hash.h"
@@ -84,7 +84,7 @@ bool COutPoint::IsSupernodeReward(const CTransaction* tx) const
 {
     if(!tx->IsCoinStake())
         return false;
-
+    LogPrintf("COutPoint::IsSupernodeReward() tx=%s\n", tx->ToString());
     return (n == tx->vout.size() - 1) && (tx->vout[1].scriptPubKey != tx->vout[n].scriptPubKey); // CHECK IF NEEDS TO BE REVISED
 }
 
@@ -160,6 +160,13 @@ CAmount CTransaction::GetValueOut() const
 
 CAmount CTransaction::GetZerocoinMinted() const
 {
+    for (const CTxOut txOut : vout) {
+        if(!txOut.scriptPubKey.IsZerocoinMint())
+            continue;
+
+        return txOut.nValue;
+    }
+
     return  CAmount(0);
 }
 
@@ -184,12 +191,33 @@ std::list<COutPoint> CTransaction::GetOutPoints() const
 
 CAmount CTransaction::GetZerocoinSpent() const
 {
-    return 0;
+    if(!IsZerocoinSpend())
+        return 0;
+
+    CAmount nValueOut = 0;
+    for (const CTxIn txin : vin) {
+        if(!txin.scriptSig.IsZerocoinSpend())
+            LogPrintf("%s is not zcspend\n", __func__);
+
+        std::vector<char, zero_after_free_allocator<char> > dataTxIn;
+        dataTxIn.insert(dataTxIn.end(), txin.scriptSig.begin() + 4, txin.scriptSig.end());
+
+        CDataStream serializedCoinSpend(dataTxIn, SER_NETWORK, PROTOCOL_VERSION);
+        libzerocoin::CoinSpend spend(Params().Zerocoin_Params(), serializedCoinSpend);
+        nValueOut += libzerocoin::ZerocoinDenominationToAmount(spend.getDenomination());
+    }
+
+    return nValueOut;
 }
 
 int CTransaction::GetZerocoinMintCount() const
 {
-    return 0;
+    int nCount = 0;
+    for (const CTxOut out : vout) {
+        if (out.scriptPubKey.IsZerocoinMint())
+            nCount++;
+    }
+    return nCount;
 }
 
 double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSize) const

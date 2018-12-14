@@ -11,10 +11,10 @@
  **/
 // Copyright (c) 2018 Oxid developers
 
-#include <sstream>
-#include <iostream>
 #include "Accumulator.h"
 #include "ZerocoinDefines.h"
+#include <iostream>
+#include <sstream>
 
 namespace libzerocoin {
 

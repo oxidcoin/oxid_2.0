@@ -28,9 +28,9 @@
 #include <QDir>
 #include <QKeyEvent>
 #include <QScrollBar>
+#include <QStringList>
 #include <QThread>
 #include <QTime>
-#include <QStringList>
 
 #if QT_VERSION < 0x050000
 #include <QUrl>

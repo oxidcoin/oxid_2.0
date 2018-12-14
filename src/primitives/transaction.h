@@ -260,11 +260,15 @@ public:
 
     bool IsZerocoinSpend() const
     {
-        return false;
+        return (vin.size() > 0 && vin[0].prevout.IsNull() && vin[0].scriptSig[0] == OP_ZEROCOINSPEND);
     }
 
     bool IsZerocoinMint() const
     {
+        for(const CTxOut& txout : vout) {
+            if (txout.scriptPubKey.IsZerocoinMint())
+                return true;
+        }
         return false;
     }
 

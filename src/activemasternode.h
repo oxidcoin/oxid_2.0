@@ -12,9 +12,8 @@
 #include "net.h"
 #include "obfuscation.h"
 #include "sync.h"
-#include "wallet.h"
-
 #include "utilmoneystr.h"
+#include "wallet.h"
 
 #define ACTIVE_MASTERNODE_INITIAL 0 // initial state
 #define ACTIVE_MASTERNODE_SYNC_IN_PROCESS 1

@@ -3,31 +3,42 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "multisigdialog.h"
+
 #include "forms/ui_multisigdialog.h"
 
 #include "askpassphrasedialog.h"
 #include "primitives/transaction.h"
+
 #include "addressbookpage.h"
 #include "utilstrencodings.h"
+
 #include "core_io.h"
 #include "script/script.h"
+
 #include "base58.h"
 #include "coins.h"
 #include "keystore.h"
+
 #include "init.h"
 #include "wallet.h"
+
 #include "script/sign.h"
+
 #include "script/interpreter.h"
 #include "utilmoneystr.h"
+
 #include "guiutil.h"
 #include "qvalidatedlineedit.h"
+
 #include "bitcoinamountfield.h"
 
 #include <QtCore/QVariant>
+
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QSpinBox>
+
 #include <QClipboard>
 
 
@@ -307,7 +318,7 @@ void MultisigDialog::on_createButton_clicked()
             string fee;
             if(!createMultisigTransaction(vUserIn, vUserOut, fee, error)){
                 throw runtime_error(error);
-            }   
+            }
 
             //display status string
             ui->createButtonStatus->setStyleSheet("QTextEdit{ color: black }");
@@ -1021,4 +1032,3 @@ void MultisigDialog::on_addPrivKeyButton_clicked()
 
     ui->keyList->addWidget(keyFrame);
 }
-

@@ -165,6 +165,63 @@ bool CWalletDB::WriteStakeSplitThreshold(uint64_t nStakeSplitThreshold)
     return Write(std::string("stakeSplitThreshold"), nStakeSplitThreshold);
 }
 
+//presstab HyperStake
+bool CWalletDB::WriteMultiSend(std::vector<std::pair<std::string, int> > vMultiSend)
+{
+    nWalletDBUpdated++;
+    bool ret = true;
+    for (unsigned int i = 0; i < vMultiSend.size(); i++) {
+        std::pair<std::string, int> pMultiSend;
+        pMultiSend = vMultiSend[i];
+        if (!Write(std::make_pair(std::string("multisend"), i), pMultiSend, true))
+            ret = false;
+    }
+    return ret;
+}
+//presstab HyperStake
+bool CWalletDB::EraseMultiSend(std::vector<std::pair<std::string, int> > vMultiSend)
+{
+    nWalletDBUpdated++;
+    bool ret = true;
+    for (unsigned int i = 0; i < vMultiSend.size(); i++) {
+        std::pair<std::string, int> pMultiSend;
+        pMultiSend = vMultiSend[i];
+        if (!Erase(std::make_pair(std::string("multisend"), i)))
+            ret = false;
+    }
+    return ret;
+}
+//presstab HyperStake
+bool CWalletDB::WriteMSettings(bool fMultiSendStake, bool fMultiSendMasternode, int nLastMultiSendHeight)
+{
+    nWalletDBUpdated++;
+    std::pair<bool, bool> enabledMS(fMultiSendStake, fMultiSendMasternode);
+    std::pair<std::pair<bool, bool>, int> pSettings(enabledMS, nLastMultiSendHeight);
+
+    return Write(std::string("msettingsv2"), pSettings, true);
+}
+//presstab HyperStake
+bool CWalletDB::WriteMSDisabledAddresses(std::vector<std::string> vDisabledAddresses)
+{
+    nWalletDBUpdated++;
+    bool ret = true;
+    for (unsigned int i = 0; i < vDisabledAddresses.size(); i++) {
+        if (!Write(std::make_pair(std::string("mdisabled"), i), vDisabledAddresses[i]))
+            ret = false;
+    }
+    return ret;
+}
+//presstab HyperStake
+bool CWalletDB::EraseMSDisabledAddresses(std::vector<std::string> vDisabledAddresses)
+{
+    nWalletDBUpdated++;
+    bool ret = true;
+    for (unsigned int i = 0; i < vDisabledAddresses.size(); i++) {
+        if (!Erase(std::make_pair(std::string("mdisabled"), i)))
+            ret = false;
+    }
+    return ret;
+}
 bool CWalletDB::WriteAutoCombineSettings(bool fEnable, CAmount nCombineThreshold)
 {
     nWalletDBUpdated++;
@@ -381,8 +438,24 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
             ssValue >> wtx;
             CValidationState state;
             // false because there is no reason to go through the zerocoin checks for our own wallet
-            if (!(CheckTransaction(wtx, false, state) && (wtx.GetHash() == hash) && state.IsValid()))
+            if (!(CheckTransaction(wtx, false, false, state) && (wtx.GetHash() == hash) && state.IsValid()))
                 return false;
+
+            // Undo serialize changes in 31600
+            if (31404 <= wtx.fTimeReceivedIsTxTime && wtx.fTimeReceivedIsTxTime <= 31703) {
+                if (!ssValue.empty()) {
+                    char fTmp;
+                    char fUnused;
+                    ssValue >> fTmp >> fUnused >> wtx.strFromAccount;
+                    strErr = strprintf("LoadWallet() upgrading tx ver=%d %d '%s' %s",
+                        wtx.fTimeReceivedIsTxTime, fTmp, wtx.strFromAccount, hash.ToString());
+                    wtx.fTimeReceivedIsTxTime = fTmp;
+                } else {
+                    strErr = strprintf("LoadWallet() repairing tx ver=%d %s", wtx.fTimeReceivedIsTxTime, hash.ToString());
+                    wtx.fTimeReceivedIsTxTime = 0;
+                }
+                wss.vWalletUpgrade.push_back(hash);
+            }
 
             if (wtx.nOrderPos == -1)
                 wss.fAnyUnordered = true;
@@ -549,9 +622,33 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
         } else if (strType == "stakeSplitThreshold") //presstab HyperStake
         {
             ssValue >> pwallet->nStakeSplitThreshold;
-        }
-
-        else if (strType == "destdata") {
+        } else if (strType == "multisend") //presstab HyperStake
+        {
+            unsigned int i;
+            ssKey >> i;
+            std::pair<std::string, int> pMultiSend;
+            ssValue >> pMultiSend;
+            if (CBitcoinAddress(pMultiSend.first).IsValid()) {
+                pwallet->vMultiSend.push_back(pMultiSend);
+            }
+        } else if (strType == "msettingsv2") //presstab HyperStake
+        {
+            std::pair<std::pair<bool, bool>, int> pSettings;
+            ssValue >> pSettings;
+            pwallet->fMultiSendStake = pSettings.first.first;
+            pwallet->fMultiSendMasternodeReward = pSettings.first.second;
+            pwallet->nLastMultiSendHeight = pSettings.second;
+        } else if (strType == "mdisabled") //presstab HyperStake
+        {
+            std::string strDisabledAddress;
+            ssValue >> strDisabledAddress;
+            pwallet->vDisabledAddresses.push_back(strDisabledAddress);
+        } else if (strType == "autocombinesettings") {
+            std::pair<bool, CAmount> pSettings;
+            ssValue >> pSettings;
+            pwallet->fCombineDust = pSettings.first;
+            pwallet->nAutoCombineThreshold = pSettings.second;
+        } else if (strType == "destdata") {
             std::string strAddress, strKey, strValue;
             ssKey >> strAddress;
             ssKey >> strKey;
@@ -950,8 +1047,8 @@ bool CWalletDB::WriteZerocoinMint(const CZerocoinMint& zerocoinMint)
     ss << zerocoinMint.GetValue();
     uint256 hash = Hash(ss.begin(), ss.end());
 
-    Erase(make_pair(string("zerocoin"), hash));
-    return Write(make_pair(string("zerocoin"), hash), zerocoinMint, true);
+    Erase(make_pair(string("accumulators"), hash));
+    return Write(make_pair(string("accumulators"), hash), zerocoinMint, true);
 }
 
 bool CWalletDB::ReadZerocoinMint(const CBigNum &bnPubCoinValue, CZerocoinMint& zerocoinMint)
@@ -960,7 +1057,7 @@ bool CWalletDB::ReadZerocoinMint(const CBigNum &bnPubCoinValue, CZerocoinMint& z
     ss << bnPubCoinValue;
     uint256 hash = Hash(ss.begin(), ss.end());
 
-    return Read(make_pair(string("zerocoin"), hash), zerocoinMint);
+    return Read(make_pair(string("accumulators"), hash), zerocoinMint);
 }
 
 bool CWalletDB::EraseZerocoinMint(const CZerocoinMint& zerocoinMint)
@@ -969,7 +1066,7 @@ bool CWalletDB::EraseZerocoinMint(const CZerocoinMint& zerocoinMint)
     ss << zerocoinMint.GetValue();
     uint256 hash = Hash(ss.begin(), ss.end());
 
-    return Erase(make_pair(string("zerocoin"), hash));
+    return Erase(make_pair(string("accumulators"), hash));
 }
 
 bool CWalletDB::ArchiveMintOrphan(const CZerocoinMint& zerocoinMint)
@@ -983,7 +1080,7 @@ bool CWalletDB::ArchiveMintOrphan(const CZerocoinMint& zerocoinMint)
         return false;
     }
 
-    if (!Erase(make_pair(string("zerocoin"), hash))) {
+    if (!Erase(make_pair(string("accumulators"), hash))) {
         LogPrintf("%s : failed to erase orphaned zerocoin mint\n", __func__);
         return false;
     }
@@ -1004,6 +1101,134 @@ bool CWalletDB::UnarchiveZerocoin(const CZerocoinMint& mint)
 
     return WriteZerocoinMint(mint);
 }
+
+std::list<CZerocoinMint> CWalletDB::ListMintedCoins(bool fUnusedOnly, bool fMaturedOnly, bool fUpdateStatus)
+{
+    std::list<CZerocoinMint> listPubCoin;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    vector<CZerocoinMint> vOverWrite;
+    vector<CZerocoinMint> vArchive;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("accumulators"), uint256(0));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "accumulators")
+            break;
+
+        uint256 value;
+        ssKey >> value;
+
+        CZerocoinMint mint;
+        ssValue >> mint;
+
+        if (fUnusedOnly) {
+            if (mint.IsUsed())
+                continue;
+
+            //double check that we have no record of this serial being used
+            if (ReadZerocoinSpendSerialEntry(mint.GetSerialNumber())) {
+                mint.SetUsed(true);
+                vOverWrite.emplace_back(mint);
+                continue;
+            }
+        }
+
+        if (fMaturedOnly || fUpdateStatus) {
+            //if there is not a record of the block height, then look it up and assign it
+            if (!mint.GetHeight()) {
+                CTransaction tx;
+                uint256 hashBlock;
+                if(!GetTransaction(mint.GetTxHash(), tx, hashBlock, true)) {
+                    LogPrintf("%s failed to find tx for mint txid=%s\n", __func__, mint.GetTxHash().GetHex());
+                    vArchive.emplace_back(mint);
+                    continue;
+                }
+
+                //if not in the block index, most likely is unconfirmed tx
+                if (mapBlockIndex.count(hashBlock)) {
+                    mint.SetHeight(mapBlockIndex[hashBlock]->nHeight);
+                    vOverWrite.emplace_back(mint);
+                } else if (fMaturedOnly){
+                    continue;
+                }
+            }
+
+            //not mature
+            if (mint.GetHeight() > chainActive.Height() - Params().Zerocoin_MintRequiredConfirmations()) {
+                if (!fMaturedOnly)
+                    listPubCoin.emplace_back(mint);
+                continue;
+            }
+
+            //if only requesting an update (fUpdateStatus) then skip the rest and add to list
+            if (fMaturedOnly) {
+                // check to make sure there are at least 3 other mints added to the accumulators after this
+                if (chainActive.Height() < mint.GetHeight() + 1)
+                    continue;
+
+                CBlockIndex *pindex = chainActive[mint.GetHeight() + 1];
+                int nMintsAdded = 0;
+                while(pindex->nHeight < chainActive.Height() - 30) { // 30 just to make sure that its at least 2 checkpoints from the top block
+                    nMintsAdded += count(pindex->vMintDenominationsInBlock.begin(), pindex->vMintDenominationsInBlock.end(), mint.GetDenomination());
+                    if(nMintsAdded >= Params().Zerocoin_RequiredAccumulation())
+                        break;
+                    pindex = chainActive[pindex->nHeight + 1];
+                }
+
+                if(nMintsAdded < Params().Zerocoin_RequiredAccumulation())
+                    continue;
+            }
+        }
+        listPubCoin.emplace_back(mint);
+    }
+
+    pcursor->close();
+
+    //overwrite any updates
+    for (CZerocoinMint mint : vOverWrite) {
+        if(!this->WriteZerocoinMint(mint))
+            LogPrintf("%s failed to update mint from tx %s\n", __func__, mint.GetTxHash().GetHex());
+    }
+
+    // archive mints
+    for (CZerocoinMint mint : vArchive) {
+        if (!this->ArchiveMintOrphan(mint))
+            LogPrintf("%s failed to archive mint from %s\n", __func__, mint.GetTxHash().GetHex());
+    }
+
+    return listPubCoin;
+}
+// Just get the Serial Numbers
+std::list<CBigNum> CWalletDB::ListMintedCoinsSerial()
+{
+    std::list<CBigNum> listPubCoin;
+    std::list<CZerocoinMint> listCoins = ListMintedCoins(true, false, false);
+
+    for ( auto& coin : listCoins) {
+        listPubCoin.push_back(coin.GetSerialNumber());
+    }
+    return listPubCoin;
+}
+
 
 std::list<CZerocoinSpend> CWalletDB::ListSpentCoins()
 {

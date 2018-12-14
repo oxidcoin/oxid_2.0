@@ -16,12 +16,17 @@
 
 #include <list>
 #include <vector>
+
 #include <bitset>
+
 #include "Params.h"
+
 #include "Coin.h"
 #include "Commitment.h"
+
 #include "bignum.h"
 #include "serialize.h"
+
 #include "Accumulator.h"
 #include "hash.h"
 

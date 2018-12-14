@@ -10,8 +10,8 @@
 * @license    This project is released under the MIT license.
 **/
 // Copyright (c) 2018 Oxid developers
-#include <streams.h>
 #include "SerialNumberSignatureOfKnowledge.h"
+#include <streams.h>
 
 namespace libzerocoin {
 

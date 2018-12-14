@@ -11,8 +11,8 @@
 #include "bitcoingui.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
-#include "intro.h"
 #include "guiutil.h"
+#include "intro.h"
 
 #include "clientversion.h"
 #include "init.h"
@@ -23,8 +23,8 @@
 #include <QCloseEvent>
 #include <QLabel>
 #include <QRegExp>
-#include <QTextTable>
 #include <QTextCursor>
+#include <QTextTable>
 #include <QVBoxLayout>
 
 /** "Help message" or "About" dialog box */

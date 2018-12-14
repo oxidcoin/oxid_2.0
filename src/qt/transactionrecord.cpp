@@ -80,21 +80,21 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                     sub.type = TransactionRecord::StakeMint;
                     sub.address = CBitcoinAddress(destStake).ToString();
                     sub.credit = nNet - nNodeRewards;
-                    LogPrintf("+++++++ TransactionRecord::decomposeTransaction() sub.address=%s sub.credit=%d +++++++\n", sub.address, FormatMoney(sub.credit).c_str());
+                    LogPrintf("+++++++ TransactionRecord::decomposeTransaction(Stake) sub.address=%s sub.credit=%d +++++++\n", sub.address, FormatMoney(sub.credit).c_str());
                 } else if (index == nMasternodeIndex && ExtractDestination(txout.scriptPubKey, destMasternode) && IsMine(*wallet, destMasternode)) {
                     isminetype mine = wallet->IsMine(txout);
                     sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                     sub.type = TransactionRecord::MNReward;
                     sub.address = CBitcoinAddress(destMasternode).ToString();
                     sub.credit = txout.nValue;
-                    LogPrintf("+++++++ TransactionRecord::decomposeTransaction() sub.address=%s sub.credit=%d +++++++\n", sub.address, FormatMoney(sub.credit).c_str());
+                    LogPrintf("+++++++ TransactionRecord::decomposeTransaction(Masternode) sub.address=%s sub.credit=%d +++++++\n", sub.address, FormatMoney(sub.credit).c_str());
                 } else if (index == nSupernodeIndex && ExtractDestination(txout.scriptPubKey, destSupernode) && IsMine(*wallet, destSupernode)) {
                     isminetype mine = wallet->IsMine(txout);
                     sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                     sub.type = TransactionRecord::SNReward;
                     sub.address = CBitcoinAddress(destSupernode).ToString();
                     sub.credit = txout.nValue;
-                    LogPrintf("+++++++ TransactionRecord::decomposeTransaction() sub.address=%s sub.credit=%d +++++++\n", sub.address, FormatMoney(sub.credit).c_str());
+                    LogPrintf("+++++++ TransactionRecord::decomposeTransaction(Supernode) sub.address=%s sub.credit=%d +++++++\n", sub.address, FormatMoney(sub.credit).c_str());
                 }
                 parts.append(sub);
             }

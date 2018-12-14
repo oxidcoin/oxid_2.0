@@ -18,8 +18,8 @@
 #define MASTERNODE_MIN_MNP_SECONDS (10 * 60)
 #define MASTERNODE_MIN_MNB_SECONDS (5 * 60)
 #define MASTERNODE_PING_SECONDS (5 * 60)
-#define MASTERNODE_EXPIRATION_SECONDS (30 * 60) // 120
-#define MASTERNODE_REMOVAL_SECONDS (40 * 60)    // 130
+#define MASTERNODE_EXPIRATION_SECONDS (30 * 60)
+#define MASTERNODE_REMOVAL_SECONDS (40 * 60)
 #define MASTERNODE_CHECK_SECONDS 5
 
 using namespace std;
@@ -43,6 +43,7 @@ public:
     uint256 blockHash;
     int64_t sigTime; //mnb message times
     std::vector<unsigned char> vchSig;
+    //removed stop
 
     CMasternodePing();
     CMasternodePing(CTxIn& newVin);
@@ -154,8 +155,8 @@ public:
     int nLastScanningErrorBlockHeight;
     CMasternodePing lastPing;
 
-    int64_t nLastDsee;  // temporary, do not save. Remove after migration to v12
-    int64_t nLastDseep; // temporary, do not save. Remove after migration to v12
+    int64_t nLastDsee;
+    int64_t nLastDseep;
 
     CMasternode();
     CMasternode(const CMasternode& other);

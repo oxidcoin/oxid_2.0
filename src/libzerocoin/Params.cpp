@@ -10,8 +10,8 @@
 * @license    This project is released under the MIT license.
 **/
 // Copyright (c) 2018 Oxid developers
-#include "Params.h"
 #include "ParamGeneration.h"
+#include "Params.h"
 
 namespace libzerocoin {
 

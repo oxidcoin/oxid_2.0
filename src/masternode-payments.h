@@ -31,6 +31,7 @@ bool IsBlockPayeeValid(const CBlock& block, int nBlockHeight);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue, CAmount nMinted);
 void FillBlockPayee(CMutableTransaction& txNew, CAmount nFees, bool fProofOfStake);
+bool GetMasternodeTransaction(CMasternode* winnerMasternode, CTransaction& txOut, uint256& hashBlock);
 
 void DumpMasternodePayments();
 
@@ -226,7 +227,6 @@ public:
         payee = payeeIn;
         payeeTier = payeeTierIn;
     }
-
 
     ADD_SERIALIZE_METHODS;
 

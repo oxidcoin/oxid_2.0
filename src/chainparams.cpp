@@ -84,29 +84,33 @@ static Checkpoints::MapCheckpoints mapCheckpoints =
     (10000, uint256("27d936ff52519cc606c4c21337bfa00bcc1fb2dd1a7c1ac14afbb230f34fc288"))
     (15000, uint256("9249b81d4253fd7982313d848fb73a06bfffbb3b63cfb067a0fe51655a4d65c4"))
     (20000, uint256("98637fab277afa9d4210ddb00c69f77c601ee9c2a951bc42f67e25fb9d049eb1"))
-    (25000, uint256("1c2c278c7a7dda14c3545a12450e485b4a2e45ced3cc18c4a0c0736657b5c217"));
+    (25000, uint256("1c2c278c7a7dda14c3545a12450e485b4a2e45ced3cc18c4a0c0736657b5c217"))
+    (30000, uint256("436220ecc3aec1b2a930f7bb575d52b8a5a35f581c7f4d7fad3b2fc16d021102"))
+    (40000, uint256("04a060c44dff53dd5b3612dce4294d47e832c866c8fb81e20f4da37967e5703d"))
+    (50000, uint256("8d96aa731d0f58a4d3f01826287b48fa1dedb91f6c356597aa3865e5a31a9e2f"))
+    (60000, uint256("628507837cd1d7e9796bbddfccb2f2ef4c3d82ce6e555e0a447b159d3ae7b9f1"));
 
-static const Checkpoints::CCheckpointData data = {
-    &mapCheckpoints,
-    1540916304, // * UNIX timestamp of last checkpoint block
-    7100,       // * total number of transactions between genesis and last checkpoint (the tx=... number in the SetBestChain debug.log lines)
-    1000};      // * estimated number of transactions per day after checkpoint
+    static const Checkpoints::CCheckpointData data = {
+        &mapCheckpoints,
+        1544285116, // * UNIX timestamp of last checkpoint block
+        120197,     // * total number of transactions between genesis and last checkpoint (the tx=... number in the SetBestChain debug.log lines)
+        1000};      // * estimated number of transactions per day after checkpoint
 
-static Checkpoints::MapCheckpoints mapCheckpointsTestnet =
-    boost::assign::map_list_of(0, uint256("0x0000010e505bd636c2e300a35f5cd79ed7575163b5f3f37dbb5d6f71e061f324"));
-static const Checkpoints::CCheckpointData dataTestnet = {
-    &mapCheckpointsTestnet,
-    1540711000,
-    0,
-    250};
+    static Checkpoints::MapCheckpoints mapCheckpointsTestnet =
+        boost::assign::map_list_of(0, uint256("0x0000010e505bd636c2e300a35f5cd79ed7575163b5f3f37dbb5d6f71e061f324"));
+    static const Checkpoints::CCheckpointData dataTestnet = {
+        &mapCheckpointsTestnet,
+        1540711000,
+        0,
+        250};
 
-static Checkpoints::MapCheckpoints mapCheckpointsRegtest =
-    boost::assign::map_list_of(0, uint256("0x00000905393b6a275550951332fb206f0ab078648078757d26da62e40685b58d"));
-static const Checkpoints::CCheckpointData dataRegtest = {
-    &mapCheckpointsRegtest,
-    1540712000,
-    0,
-    100};
+    static Checkpoints::MapCheckpoints mapCheckpointsRegtest =
+        boost::assign::map_list_of(0, uint256("0x00000905393b6a275550951332fb206f0ab078648078757d26da62e40685b58d"));
+    static const Checkpoints::CCheckpointData dataRegtest = {
+        &mapCheckpointsRegtest,
+        1540712000,
+        0,
+        100};
 
 libzerocoin::ZerocoinParams* CChainParams::Zerocoin_Params() const
 {
@@ -139,6 +143,7 @@ public:
         nTargetTimespan = 120;
         nTargetSpacing = 120;  // Oxid: 2 minute
         nMaturity = 10;
+        nMasternodeCountDrift = 20; // ---
         nMaxMoneyOut = 89000000 * COIN;
 
         /** Height or Time Based Activations **/
@@ -148,6 +153,9 @@ public:
         nBlockFirstFraudulent = 1003;         // First block that bad serials emerged
         nBlockLastGoodCheckpoint = 1005;      // Last valid accumulator checkpoint
         nBlockEnforceInvalidUTXO = 1001;      // Start enforcing the invalid UTXO's
+        nZerocoinStartHeight = 44000000;      //
+        nBlockEnforceSerialRange = 1004;      // Enforce serial range starting this block
+        nZerocoinStartTime = 4102444799;      //
 
         /** X11
          * uint32_t nTime  // 1540710000
@@ -192,7 +200,7 @@ public:
         fRequireRPCPassword = true;
         fMiningRequiresPeers = true;
         fAllowMinDifficultyBlocks = false;
-        fDefaultConsistencyChecks = true;
+        fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
         fSkipProofOfWorkCheck = false;
@@ -210,6 +218,14 @@ public:
                           "7259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133"
                           "8441436038339044149526344321901146575444541784240209246165157233507787077498171257724679629263863563732899121548"
                           "31438167899885040445364023527381951378636564391212010397122822120720357";
+
+        nMaxZerocoinSpendsPerTransaction = 7; // Assume about 20kb each
+        nMinZerocoinMintFee = 1 * CENT;       // high fee required for zerocoin mints
+        nMintRequiredConfirmations = 20;      // the maximum amount of confirmations until accumulated in 19
+        nRequiredAccumulation = 2;
+        nDefaultSecurityLevel = 100;          // full security level for accumulators
+        nZerocoinHeaderVersion = 4;           // Block headers must be this version once zerocoin is active
+        nBudget_Fee_Confirmations = 6;        // Number of confirmations for the finalization fee
     }
 
     const Checkpoints::CCheckpointData& Checkpoints() const
@@ -306,57 +322,57 @@ static CTestNetParams testNetParams;
 class CRegTestParams : public CTestNetParams
 {
 public:
-    CRegTestParams()
-    {
-        networkID = CBaseChainParams::REGTEST;
-        strNetworkID = "regtest";
-        strNetworkID = "regtest";
-        pchMessageStart[0] = 0xa2;
-        pchMessageStart[1] = 0xcf;
-        pchMessageStart[2] = 0x7e;
-        pchMessageStart[3] = 0xac;
-        nEnforceBlockUpgradeMajority = 750;
-        nRejectBlockOutdatedMajority = 950;
-        nToCheckBlockUpgradeMajority = 1000;
-        nMinerThreads = 1;
-        nTargetTimespan = 24 * 60 * 60; // Oxid: 1 day
-        nTargetSpacing = 1 * 60;        // Oxid: 1 minutes
-        bnProofOfWorkLimit = ~uint256(0) >> 1;
-        nDefaultPort = 28944;
+     CRegTestParams()
+     {
+         networkID = CBaseChainParams::REGTEST;
+         strNetworkID = "regtest";
+         strNetworkID = "regtest";
+         pchMessageStart[0] = 0xa2;
+         pchMessageStart[1] = 0xcf;
+         pchMessageStart[2] = 0x7e;
+         pchMessageStart[3] = 0xac;
+         nEnforceBlockUpgradeMajority = 750;
+         nRejectBlockOutdatedMajority = 950;
+         nToCheckBlockUpgradeMajority = 1000;
+         nMinerThreads = 1;
+         nTargetTimespan = 24 * 60 * 60; // Oxid: 1 day
+         nTargetSpacing = 1 * 60;        // Oxid: 1 minutes
+         bnProofOfWorkLimit = ~uint256(0) >> 1;
+         nDefaultPort = 28944;
 
-        /** X11
-         * uint32_t nTime  // 1540712000
-         * uint32_t nNonce // 1130508
-         * uint32_t nBits  // 0x1e0ffff0
+         /** X11
+          * uint32_t nTime  // 1540712000
+          * uint32_t nNonce // 1130508
+          * uint32_t nBits  // 0x1e0ffff0
+          */
+         genesis = CreateGenesisBlock(1540712000, 1130508, 0x1e0ffff0);
+
+         /* X11
+         Regtest genesis.GetHash():      00000905393b6a275550951332fb206f0ab078648078757d26da62e40685b58d
+         Regtest genesis.hashMerkleRoot: dc813bb4d524fb3f8e67ce3481803a22e51ace5554cfce21ba223bcd62c81169
+         Regtest genesis.nTime:          1540712000
+         Regtest genesis.nNonce:         1130508
          */
-        genesis = CreateGenesisBlock(1540712000, 1130508, 0x1e0ffff0);
 
-        /* X11
-        Regtest genesis.GetHash():      00000905393b6a275550951332fb206f0ab078648078757d26da62e40685b58d
-        Regtest genesis.hashMerkleRoot: dc813bb4d524fb3f8e67ce3481803a22e51ace5554cfce21ba223bcd62c81169
-        Regtest genesis.nTime:          1540712000
-        Regtest genesis.nNonce:         1130508
-        */
+         hashGenesisBlock = genesis.GetHash();
 
-        hashGenesisBlock = genesis.GetHash();
+         assert(hashGenesisBlock == uint256("0x00000905393b6a275550951332fb206f0ab078648078757d26da62e40685b58d"));
 
-        assert(hashGenesisBlock == uint256("0x00000905393b6a275550951332fb206f0ab078648078757d26da62e40685b58d"));
+         vFixedSeeds.clear(); //! Testnet mode doesn't have any fixed seeds.
+         vSeeds.clear();      //! Testnet mode doesn't have any DNS seeds.
 
-        vFixedSeeds.clear(); //! Testnet mode doesn't have any fixed seeds.
-        vSeeds.clear();      //! Testnet mode doesn't have any DNS seeds.
-
-        fRequireRPCPassword = false;
-        fMiningRequiresPeers = false;
-        fAllowMinDifficultyBlocks = true;
-        fDefaultConsistencyChecks = true;
-        fRequireStandard = false;
-        fMineBlocksOnDemand = true;
-        fTestnetToBeDeprecatedFieldRPC = false;
-    }
-    const Checkpoints::CCheckpointData& Checkpoints() const
-    {
-        return dataRegtest;
-    }
+         fRequireRPCPassword = false;
+         fMiningRequiresPeers = false;
+         fAllowMinDifficultyBlocks = true;
+         fDefaultConsistencyChecks = true;
+         fRequireStandard = false;
+         fMineBlocksOnDemand = true;
+         fTestnetToBeDeprecatedFieldRPC = false;
+     }
+     const Checkpoints::CCheckpointData& Checkpoints() const
+     {
+         return dataRegtest;
+     }
 };
 static CRegTestParams regTestParams;
 

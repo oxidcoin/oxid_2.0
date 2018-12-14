@@ -11,9 +11,9 @@
  **/
 // Copyright (c) 2018 Oxid developers
 
-#include <stdlib.h>
 #include "Commitment.h"
 #include "hash.h"
+#include <stdlib.h>
 
 namespace libzerocoin {
 

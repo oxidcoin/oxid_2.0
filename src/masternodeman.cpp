@@ -209,7 +209,6 @@ CValidationState CMasternodeMan::CheckCollateralInTx(const CTxIn& vin, CMutableT
         return state;
     }
 
-    // LogPrintf("CMasternodeMan::CheckCollateralInTx(): Collateral: %d\n", mnCollateral);
     CMutableTransaction innerTx;
     CTxOut vout = CTxOut(mnCollateral - 0.01 * COIN, obfuScationPool.collateralPubKey);
 
@@ -275,7 +274,7 @@ void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
             (*it).activeState == CMasternode::MASTERNODE_VIN_SPENT ||
             (forceExpiredRemoval && (*it).activeState == CMasternode::MASTERNODE_EXPIRED) ||
             (*it).protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) {
-            LogPrint("masternode", "CMasternodeMan: Removing inactive Masternode %s - %i now\n", (*it).vin.prevout.hash.ToString(), size() - 1);
+            LogPrintf("CMasternodeMan: Removing inactive Masternode %s - %i now\n", (*it).vin.prevout.hash.ToString(), size() - 1);
 
             //erase all of the broadcasts we've seen from this vin
             // -- if we missed a few pings and the node was removed, this will allow is to get it back without them
@@ -427,6 +426,7 @@ int CMasternodeMan::CountEnabled(unsigned mnTier, int protocolVersion)
         if (checkTier && mnTier != mn.mnTier()) continue;
         i++;
     }
+    LogPrintf("CMasternodeMan::CountEnabled() mnTier=%s Enabled=%d\n", CMasternode::mnTierToString(mnTier), i);
     return i;
 }
 
@@ -531,9 +531,6 @@ CMasternode* CMasternodeMan::Find(const CPubKey& pubKeyMasternode)
     return NULL;
 }
 
-//
-// Deterministically select the oldest/best masternode to pay on the network
-//
 CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, unsigned mnTier, bool fFilterSigTime, int& nCount)
 {
     LOCK(cs);
@@ -545,7 +542,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         Make a vector with all of the last paid times
     */
 
-    int nMnCount = CountEnabled(mnTier);
+    int nMnCount = CountEnabled(mnTier); // 16 & 5
     BOOST_FOREACH (CMasternode& mn, vMasternodes) {
         mn.Check();
         if (!mn.IsEnabled()) continue;
@@ -569,8 +566,10 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
 
     nCount = (int)vecMasternodeLastPaid.size();
 
+    LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() vecMasternodeLastPaid.size()=%d nMnCount=%d\n", nCount, nMnCount);
+
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
-    if (fFilterSigTime && nCount < nMnCount / 3) {
+    if (fFilterSigTime && nCount > 0 && nCount < nMnCount / 3) {
         LogPrintf("Network is in the process of upgrading...\n");
         return GetNextMasternodeInQueueForPayment(nBlockHeight, mnTier, false, nCount);
     }
@@ -583,11 +582,18 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     //  -- 1/100 payments should be a double payment on mainnet - (1/(3000/10))*2
     //  -- (chance per block * chances before IsScheduled will fire)
     int nTenthNetwork = CountEnabled(mnTier) / 10;
+
+    LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() nTenthNetwork=%d vecMasternodeLastPaid.size()=%d\n", nTenthNetwork, vecMasternodeLastPaid.size());
     int nCountTenth = 0;
     uint256 nHigh = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CTxIn) & s, vecMasternodeLastPaid) {
+        LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() Looking for a %s\n", CMasternode::mnTierToString(mnTier));
         CMasternode* pmn = Find(s.second);
-        if (!pmn) break;
+        LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() Checking if found %s\n", CMasternode::mnTierToString(mnTier));
+        if (!pmn) {
+            LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() No %s found, exiting...\n", CMasternode::mnTierToString(mnTier));
+            break;
+        }
 
         uint256 n = pmn->CalculateScore(1, nBlockHeight - 100);
         if (n > nHigh) {
@@ -595,7 +601,14 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
             pBestMasternode = pmn;
         }
         nCountTenth++;
-        if (nCountTenth >= nTenthNetwork) break;
+        LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() nCountTenth=%d nTenthNetwork=%d\n", nCountTenth, nTenthNetwork);
+        if (nCountTenth >= nTenthNetwork) {
+            LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() %d >= %d Exiting...\n", nCountTenth, nTenthNetwork);
+            break;
+        }
+    }
+    if(pBestMasternode) {
+        LogPrintf("CMasternodeMan::GetNextMasternodeInQueueForPayment() pBestMasternode=%s \n", pBestMasternode->ToString());
     }
     return pBestMasternode;
 }
@@ -640,12 +653,16 @@ CMasternode* CMasternodeMan::GetCurrentMasterNode(unsigned mnTier, int mod, int6
     CMasternode* winner = NULL;
     auto checkTier = mnTier != CMasternode::nodeTier::UNKNOWN;
 
+    LogPrintf("CMasternodeMan::GetCurrentMasterNode() masternode_count=%i block_height=%d\n", (int)vMasternodes.size(), nBlockHeight);
+
     // scan for winner
     BOOST_FOREACH (CMasternode& mn, vMasternodes) {
         mn.Check();
         if (mn.protocolVersion < minProtocol || !mn.IsEnabled()) continue;
 
         if(checkTier && mn.mnTier() != mnTier) continue;
+
+        LogPrintf("CMasternodeMan::GetCurrentMasterNode() mn.mnTier()=%s == mnTier=%s\n", CMasternode::mnTierToString(mn.mnTier()), CMasternode::mnTierToString(mnTier));
 
         // calculate the score for each Masternode
         uint256 n = mn.CalculateScore(mod, nBlockHeight);

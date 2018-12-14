@@ -61,6 +61,7 @@ public slots:
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to privacy page */
+    //void gotoPrivacyPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to explorer page */
@@ -70,6 +71,7 @@ public slots:
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
     /** Show MultiSend Dialog **/
+    void gotoMultiSendDialog();
     /** show a multisig tab **/
     void gotoMultisigDialog(int index);
     /** Show BIP 38 tool - default to Encryption tab */

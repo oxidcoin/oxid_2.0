@@ -114,6 +114,11 @@ public:
 
     // presstab
     bool WriteStakeSplitThreshold(uint64_t nStakeSplitThreshold);
+    bool WriteMultiSend(std::vector<std::pair<std::string, int> > vMultiSend);
+    bool EraseMultiSend(std::vector<std::pair<std::string, int> > vMultiSend);
+    bool WriteMSettings(bool fMultiSendStake, bool fMultiSendMasternode, int nLastMultiSendHeight);
+    bool WriteMSDisabledAddresses(std::vector<std::string> vDisabledAddresses);
+    bool EraseMSDisabledAddresses(std::vector<std::string> vDisabledAddresses);
     bool WriteAutoCombineSettings(bool fEnable, CAmount nCombineThreshold);
 
     bool WriteDefaultKey(const CPubKey& vchPubKey);
@@ -148,9 +153,9 @@ public:
     bool ReadZerocoinMint(const CBigNum &bnSerial, CZerocoinMint& zerocoinMint);
     bool ArchiveMintOrphan(const CZerocoinMint& zerocoinMint);
     bool UnarchiveZerocoin(const CZerocoinMint& mint);
-
+    std::list<CZerocoinMint> ListMintedCoins(bool fUnusedOnly, bool fMaturedOnly, bool fUpdateStatus);
     std::list<CZerocoinSpend> ListSpentCoins();
-
+    std::list<CBigNum> ListMintedCoinsSerial();
     std::list<CBigNum> ListSpentCoinsSerial();
     std::list<CZerocoinMint> ListArchivedZerocoins();
     bool WriteZerocoinSpendSerialEntry(const CZerocoinSpend& zerocoinSpend);

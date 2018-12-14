@@ -8,6 +8,7 @@
 #include "db.h"
 #include "init.h"
 #include "main.h"
+#include "masternode-budget.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
 #include "masternodeman.h"
@@ -49,6 +50,56 @@ void SendMoney(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,
     }
     if (!pwalletMain->CommitTransaction(wtxNew, reservekey))
         throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+}
+
+Value obfuscation(const Array& params, bool fHelp)
+{
+    throw runtime_error("Obfuscation is not supported any more. Use Zerocoin\n");
+
+    if (fHelp || params.size() == 0)
+        throw runtime_error(
+            "obfuscation <oxidaddress> <amount>\n"
+            "oxidaddress, reset, or auto (AutoDenominate)"
+            "<amount> is a real and will be rounded to the next 0.1" +
+            HelpRequiringPassphrase());
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    if (params[0].get_str() == "auto") {
+        if (fMasterNode)
+            return "ObfuScation is not supported from masternodes";
+
+        return "DoAutomaticDenominating " + (obfuScationPool.DoAutomaticDenominating() ? "successful" : ("failed: " + obfuScationPool.GetStatus()));
+    }
+
+    if (params[0].get_str() == "reset") {
+        obfuScationPool.Reset();
+        return "successfully reset obfuscation";
+    }
+
+    if (params.size() != 2)
+        throw runtime_error(
+            "obfuscation <oxidaddress> <amount>\n"
+            "oxidaddress, denominate, or auto (AutoDenominate)"
+            "<amount> is a real and will be rounded to the next 0.1" +
+            HelpRequiringPassphrase());
+
+    CBitcoinAddress address(params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Oxid address");
+
+    // Amount
+    CAmount nAmount = AmountFromValue(params[1]);
+
+    // Wallet comments
+    CWalletTx wtx;
+    //    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx, ONLY_DENOMINATED);
+    SendMoney(address.Get(), nAmount, wtx, ONLY_DENOMINATED);
+    //    if (strError != "")
+    //        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    return wtx.GetHash().GetHex();
 }
 
 Value masternode(const Array& params, bool fHelp)
@@ -353,6 +404,21 @@ Value getmasternodecount (const Array& params, bool fHelp)
     return obj;
 }
 
+bool isValidMasternodeTransaction(CMasternode* winner) {
+    if (winner->mnTier() != CMasternode::nodeTier::UNKNOWN) {
+        return true;
+    }
+    CTransaction prevoutTx;
+    uint256 hashBlock = 0;
+    // bool GetMasternodeTransaction(CMasternode* winnerMasternode, CTransaction& txOut, uint256& hashBlock)
+    bool vinValid =  GetMasternodeTransaction(winner, prevoutTx, hashBlock);
+    if (!vinValid) {
+        LogPrintf("supernodecurrent() vinValid=%d\n", vinValid);
+        return false;
+    }
+    return true;
+}
+
 Value masternodecurrent (const Array& params, bool fHelp)
 {
     if (fHelp || (params.size() != 0))
@@ -372,6 +438,9 @@ Value masternodecurrent (const Array& params, bool fHelp)
             HelpExampleCli("masternodecurrent", "") + HelpExampleRpc("masternodecurrent", ""));
 
     CMasternode* winner = mnodeman.GetCurrentMasterNode(CMasternode::nodeTier::MASTERNODE, 1);
+
+    if (!isValidMasternodeTransaction(winner)) throw runtime_error("unknown");
+
     if (winner) {
         Object obj;
 
@@ -405,6 +474,9 @@ Value supernodecurrent (const Array& params, bool fHelp)
             HelpExampleCli("supernodecurrent", "") + HelpExampleRpc("supernodecurrent", ""));
 
     CMasternode* winner = mnodeman.GetCurrentMasterNode(CMasternode::nodeTier::SUPERNODE, 1);
+
+    if (!isValidMasternodeTransaction(winner)) throw runtime_error("unknown");
+
     if (winner) {
         Object obj;
 

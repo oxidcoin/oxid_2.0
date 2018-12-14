@@ -174,6 +174,14 @@ void WalletFrame::gotoBip38Tool()
         walletView->gotoBip38Tool();
 }
 
+void WalletFrame::gotoMultiSendDialog()
+{
+    WalletView* walletView = currentWalletView();
+
+    if (walletView)
+        walletView->gotoMultiSendDialog();
+}
+
 void WalletFrame::gotoMultisigDialog(int index)
 {
     WalletView* walletView = currentWalletView();

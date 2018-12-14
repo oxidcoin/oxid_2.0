@@ -19,6 +19,7 @@
 #include "compat/sanity.h"
 #include "key.h"
 #include "main.h"
+#include "masternode-budget.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
 #include "masternodeman.h"
@@ -188,7 +189,7 @@ void PrepareShutdown()
     InterruptTorControl();
     StopTorControl();
     DumpMasternodes();
-    //DumpBudgets();
+    DumpBudgets();
     DumpMasternodePayments();
     UnregisterNodeSignals(GetNodeSignals());
 
@@ -331,6 +332,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-pid=<file>", strprintf(_("Specify pid file (default: %s)"), "oxidd.pid"));
 #endif
     strUsage += HelpMessageOpt("-reindex", _("Rebuild block chain index from current blk000??.dat files") + " " + _("on startup"));
+    strUsage += HelpMessageOpt("-reindexaccumulators", _("Reindex the accumulator database") + " " + _("on startup"));
     strUsage += HelpMessageOpt("-reindexmoneysupply", _("Reindex OXID money supply statistics") + " " + _("on startup"));
     strUsage += HelpMessageOpt("-resync", _("Delete blockchain folders and resync from scratch") + " " + _("on startup"));
 #if !defined(WIN32)
@@ -429,7 +431,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-stopafterblockimport", strprintf(_("Stop running after importing blocks from disk (default: %u)"), 0));
         strUsage += HelpMessageOpt("-sporkkey=<privkey>", _("Enable spork administration functionality with the appropriate private key."));
     }
-    string debugCategories = "addrman, alert, bench, coindb, db, lock, rand, rpc, selectcoins, tor, mempool, net, proxy, oxid, (obfuscation, instanttx, masternode, mnpayments)"; // Don't translate these and qt below
+    string debugCategories = "addrman, alert, bench, coindb, db, lock, rand, rpc, selectcoins, tor, mempool, net, proxy, oxid, (obfuscation, instanttx, masternode, mnpayments, mnbudget, zero)"; // Don't translate these and qt below
     if (mode == HMM_BITCOIN_QT)
         debugCategories += ", qt";
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
@@ -459,7 +461,7 @@ std::string HelpMessage(HelpMessageMode mode)
     }
     strUsage += HelpMessageOpt("-shrinkdebugfile", _("Shrink debug.log file on client startup (default: 1 when no -debug)"));
     strUsage += HelpMessageOpt("-testnet", _("Use the test network"));
-    strUsage += HelpMessageOpt("-litemode=<n>", strprintf(_("Disable Masternodes and InstantTX (0-1, default: %u)"), 0));
+    strUsage += HelpMessageOpt("-litemode=<n>", strprintf(_("Disable all Oxid specific functionality (Masternodes, Zerocoin, InstantTX, Budgeting) (0-1, default: %u)"), 0));
 
 #ifdef ENABLE_WALLET
     strUsage += HelpMessageGroup(_("Staking options:"));
@@ -477,6 +479,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-mnconflock=<n>", strprintf(_("Lock masternodes from masternode configuration file (default: %u)"), 1));
     strUsage += HelpMessageOpt("-masternodeprivkey=<n>", _("Set the masternode private key"));
     strUsage += HelpMessageOpt("-masternodeaddr=<n>", strprintf(_("Set external address:port to get to this masternode (example: %s)"), "123.45.67.89:28932"));
+    strUsage += HelpMessageOpt("-budgetvotemode=<mode>", _("Change automatic finalized budget voting behavior. mode=auto: Vote for only exact finalized budget match to my generated budget. (string, default: auto)"));
 
     strUsage += HelpMessageGroup(_("InstantTX options:"));
     strUsage += HelpMessageOpt("-enableinstanttx=<n>", strprintf(_("Enable InstantTX, show confirmations for locked transactions (bool, default: %s)"), "true"));
@@ -1346,6 +1349,16 @@ bool AppInit2(boost::thread_group& threadGroup)
                 // Populate list of invalid/fraudulent outpoints that are banned from the chain
                 PopulateInvalidOutPointMap();
 
+                // Force recalculation of accumulators.
+                if (GetBoolArg("-reindexaccumulators", false)) {
+                    CBlockIndex* pindex = chainActive[Params().Zerocoin_StartHeight()];
+                    while (pindex->nHeight < chainActive.Height()) {
+                        if (!count(listAccCheckpointsNoDB.begin(), listAccCheckpointsNoDB.end(), pindex->nAccumulatorCheckpoint))
+                            listAccCheckpointsNoDB.emplace_back(pindex->nAccumulatorCheckpoint);
+                        pindex = chainActive.Next(pindex);
+                    }
+                }
+
                 // Oxid: recalculate Accumulator Checkpoints that failed to database properly
                 if (!listAccCheckpointsNoDB.empty()) {
                     uiInterface.InitMessage(_("Calculating missing accumulators..."));
@@ -1579,24 +1592,24 @@ bool AppInit2(boost::thread_group& threadGroup)
             LogPrintf("file format is unknown or invalid, please fix it manually\n");
     }
 
-    //uiInterface.InitMessage(_("Loading budget cache..."));
+    uiInterface.InitMessage(_("Loading budget cache..."));
 
-    // CBudgetDB budgetdb;
-    // CBudgetDB::ReadResult readResult2 = budgetdb.Read(budget);
+    CBudgetDB budgetdb;
+    CBudgetDB::ReadResult readResult2 = budgetdb.Read(budget);
 
-    // if (readResult2 == CBudgetDB::FileError)
-    //     LogPrintf("Missing budget cache - budget.dat, will try to recreate\n");
-    // else if (readResult2 != CBudgetDB::Ok) {
-    //     LogPrintf("Error reading budget.dat: ");
-    //     if (readResult2 == CBudgetDB::IncorrectFormat)
-    //         LogPrintf("magic is ok but data has invalid format, will try to recreate\n");
-    //     else
-    //         LogPrintf("file format is unknown or invalid, please fix it manually\n");
-    // }
+    if (readResult2 == CBudgetDB::FileError)
+        LogPrintf("Missing budget cache - budget.dat, will try to recreate\n");
+    else if (readResult2 != CBudgetDB::Ok) {
+        LogPrintf("Error reading budget.dat: ");
+        if (readResult2 == CBudgetDB::IncorrectFormat)
+            LogPrintf("magic is ok but data has invalid format, will try to recreate\n");
+        else
+            LogPrintf("file format is unknown or invalid, please fix it manually\n");
+    }
 
     //flag our cached items so we send them to our peers
-    // budget.ResetSync();
-    // budget.ClearSeen();
+    budget.ResetSync();
+    budget.ClearSeen();
 
 
     uiInterface.InitMessage(_("Loading masternode payment cache..."));
@@ -1653,7 +1666,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     }
 
     //get the mode of budget voting for this masternode
-    //strBudgetMode = GetArg("-budgetvotemode", "auto");
+    strBudgetMode = GetArg("-budgetvotemode", "auto");
 
     if (GetBoolArg("-mnconflock", true) && pwalletMain) {
         LOCK(pwalletMain->cs_wallet);
@@ -1667,7 +1680,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         }
     }
 
-    // fEnableZeromint = GetBoolArg("-enablezeromint", false);
+    fEnableZeromint = GetBoolArg("-enablezeromint", false);
 
     // nZeromintPercentage = GetArg("-zeromintpercentage", 10);
     // if (nZeromintPercentage > 100) nZeromintPercentage = 100;
@@ -1707,7 +1720,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     LogPrintf("fLiteMode %d\n", fLiteMode);
     LogPrintf("nInstantTXDepth %d\n", nInstantTXDepth);
     LogPrintf("Anonymize Oxid Amount %d\n", nAnonymizeOxidAmount);
-    //LogPrintf("Budget Mode %s\n", strBudgetMode.c_str());
+    LogPrintf("Budget Mode %s\n", strBudgetMode.c_str());
 
     /* Denominations
 

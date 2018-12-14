@@ -163,8 +163,8 @@ enum opcodetype
     OP_NOP10 = 0xb9,
 
     // zerocoin
-    // OP_ZEROCOINMINT = 0xc1,
-    // OP_ZEROCOINSPEND = 0xc2,
+    OP_ZEROCOINMINT = 0xc1,
+    OP_ZEROCOINSPEND = 0xc2,
 
     // template matching params
     OP_SMALLINTEGER = 0xfa,

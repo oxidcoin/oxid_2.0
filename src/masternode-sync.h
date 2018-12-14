@@ -61,7 +61,7 @@ public:
 
     void AddedMasternodeList(uint256 hash);
     void AddedMasternodeWinner(uint256 hash);
-    //void AddedBudgetItem(uint256 hash);
+    void AddedBudgetItem(uint256 hash);
     void GetNextAsset();
     std::string GetSyncStatus();
     void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);

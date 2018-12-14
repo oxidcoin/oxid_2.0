@@ -5,16 +5,16 @@
 #ifndef BITCOIN_QT_MULTISIGDIALOG_H
 #define BITCOIN_QT_MULTISIGDIALOG_H
 
+#include "coincontrol.h"
+#include "coincontroldialog.h"
+#include "coins.h"
+#include "primitives/transaction.h"
+#include "script/script.h"
+#include "walletmodel.h"
 #include <QDialog>
 #include <QFrame>
 #include <QString>
 #include <QVBoxLayout>
-#include "script/script.h"
-#include "primitives/transaction.h"
-#include "coins.h"
-#include "coincontrol.h"
-#include "walletmodel.h"
-#include "coincontroldialog.h"
 
 namespace Ui
 {

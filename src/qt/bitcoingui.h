@@ -128,7 +128,7 @@ private:
     QAction* openAction;
     QAction* openBlockExplorerAction;
     QAction* showHelpMessageAction;
-    //QAction* multiSendAction;
+    QAction* multiSendAction;
 
     QSystemTrayIcon* trayIcon;
     QMenu* trayIconMenu;
@@ -222,7 +222,7 @@ private slots:
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
     /** Show MultiSend Dialog */
-    //void gotoMultiSendDialog();
+    void gotoMultiSendDialog();
     /** Show MultiSig Dialog */
     void gotoMultisigCreate();
     void gotoMultisigSpend();

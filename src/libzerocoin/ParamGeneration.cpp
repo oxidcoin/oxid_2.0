@@ -10,10 +10,10 @@
 /// \license    This project is released under the MIT license.
 // Copyright (c) 2018 Oxid developers
 #include "ParamGeneration.h"
-#include <string>
-#include <cmath>
 #include "hash.h"
 #include "uint256.h"
+#include <cmath>
+#include <string>
 
 using namespace std;
 

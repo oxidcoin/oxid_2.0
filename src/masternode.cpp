@@ -20,20 +20,26 @@ std::map<int64_t, uint256> mapCacheBlockHashes;
 bool GetBlockHash(uint256& hash, int nBlockHeight)
 {
     if (chainActive.Tip() == NULL) return false;
+
     if (nBlockHeight == 0)
         nBlockHeight = chainActive.Tip()->nHeight;
+
     if (mapCacheBlockHashes.count(nBlockHeight)) {
         hash = mapCacheBlockHashes[nBlockHeight];
         return true;
     }
+
     const CBlockIndex* BlockLastSolved = chainActive.Tip();
     const CBlockIndex* BlockReading = chainActive.Tip();
+
     if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || chainActive.Tip()->nHeight + 1 < nBlockHeight) return false;
+
     int nBlocksAgo = 0;
     if (nBlockHeight > 0) {
         nBlocksAgo = (chainActive.Tip()->nHeight + 1) - nBlockHeight;
     }
     assert(nBlocksAgo >= 0);
+
     int n = 0;
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
         if (n >= nBlocksAgo) {
@@ -42,12 +48,14 @@ bool GetBlockHash(uint256& hash, int nBlockHeight)
             return true;
         }
         n++;
+
         if (BlockReading->pprev == NULL) {
             assert(BlockReading);
             break;
         }
         BlockReading = BlockReading->pprev;
     }
+
     return false;
 }
 
@@ -73,8 +81,8 @@ CMasternode::CMasternode()
     nScanningErrorCount = 0;
     nLastScanningErrorBlockHeight = 0;
     lastTimeChecked = 0;
-    nLastDsee = 0;  // temporary, do not save. Remove after migration to v12
-    nLastDseep = 0; // temporary, do not save. Remove after migration to v12
+    nLastDsee = 0;
+    nLastDseep = 0;
 }
 
 CMasternode::CMasternode(const CMasternode& other)
@@ -99,8 +107,8 @@ CMasternode::CMasternode(const CMasternode& other)
     nScanningErrorCount = other.nScanningErrorCount;
     nLastScanningErrorBlockHeight = other.nLastScanningErrorBlockHeight;
     lastTimeChecked = 0;
-    nLastDsee = other.nLastDsee;   // temporary, do not save. Remove after migration to v12
-    nLastDseep = other.nLastDseep; // temporary, do not save. Remove after migration to v12
+    nLastDsee = other.nLastDsee;
+    nLastDseep = other.nLastDseep;
 }
 
 CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
@@ -133,8 +141,8 @@ CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
     nScanningErrorCount = 0;
     nLastScanningErrorBlockHeight = 0;
     lastTimeChecked = 0;
-    nLastDsee = 0;  // temporary, do not save. Remove after migration to v12
-    nLastDseep = 0; // temporary, do not save. Remove after migration to v12
+    nLastDsee = 0;
+    nLastDseep = 0;
 }
 
 //
@@ -332,7 +340,6 @@ bool CMasternode::IsValidNetAddr()
 
 unsigned CMasternode::mnTier(CAmount vinValue)
 {
-    LogPrint("masternode","CMasternode::mnTier() vinValue=%d\n", vinValue);
     switch(vinValue) {
         case collateral::MASTERNODE_COLLATERAL * COIN:
             return nodeTier::MASTERNODE;
@@ -345,9 +352,9 @@ unsigned CMasternode::mnTier(CAmount vinValue)
 unsigned CMasternode::mnTier(const CTxIn& vin)
 {
     CAmount vinValue;
-
-    if(!HasValidCollateral(vin, vinValue))
+    if(!HasValidCollateral(vin, vinValue)) {
         return nodeTier::UNKNOWN;
+    }
 
     return mnTier(vinValue);
 }
@@ -361,11 +368,10 @@ bool CMasternode::HasValidCollateral(const CTxIn& vin, CAmount& vinValue)
 {
     CTransaction prevoutTx;
     uint256 hashBlock = 0;
-
     bool vinValid =  GetTransaction(vin.prevout.hash, prevoutTx, hashBlock, true) && (vin.prevout.n < prevoutTx.vout.size());
 
     if(!vinValid) {
-        LogPrintf("CMasternode::HasValidCollateral(): invalid vin.\n");
+        LogPrintf("CMasternode::HasValidCollateral(vin, vinValue): invalid vin.\n");
         return false;
     }
 
@@ -389,7 +395,14 @@ std::string CMasternode::ToString()
     } else {
         sTier = "UNKNOWN";
     }
-    return strprintf("CMasternode(%s Status=%s Tier=%s)\n", addr.ToString(), GetStatus(), sTier);
+    return strprintf("CMasternode(TxHash=%s addr=%s deposit=%d Status=%s Tier=%s pubKeyCollateralAddress=%s pubKeyMasternode=%s)\n",
+        vin.prevout.hash.ToString(),
+        addr.ToString(),
+        deposit,
+        GetStatus(),
+        sTier,
+        pubKeyCollateralAddress.GetHash().ToString().c_str(),
+        pubKeyMasternode.GetHash().ToString().c_str());
 }
 
 CMasternodeBroadcast::CMasternodeBroadcast()
@@ -584,6 +597,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
         if (!pmn->IsEnabled()) return true;
     }
 
+    // mn.pubkey = pubkey, IsVinAssociatedWithPubkey is validated once below,
     //   after that they just need to match
     if (pmn->pubKeyCollateralAddress == pubKeyCollateralAddress && !pmn->IsBroadcastedWithin(MASTERNODE_MIN_MNB_SECONDS)) {
         //take the newest entry

@@ -13,8 +13,8 @@
 #ifndef PARAMS_H_
 #define PARAMS_H_
 
-#include "bignum.h"
 #include "ZerocoinDefines.h"
+#include "bignum.h"
 
 namespace libzerocoin {
 
@@ -62,7 +62,7 @@ public:
 		    READWRITE(h);
 		    READWRITE(modulus);
 		    READWRITE(groupOrder);
-	}	
+	}
 };
 
 class AccumulatorAndProofParams {
@@ -202,7 +202,7 @@ public:
 	 * proofs.
 	 */
 	uint32_t zkp_hash_len;
-	
+
 	ADD_SERIALIZE_METHODS;
   template <typename Stream, typename Operation>  inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
 	    READWRITE(initialized);
